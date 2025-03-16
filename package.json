@@ -1,29 +1,32 @@
 {
   "name": "h3-mock-serve",
   "version": "1.0.0",
-  "description": "",
-  "scripts": {
-    "start": "listhen app.ts",
-    "dev": "listhen -w app.ts"
-  },
+  "description": "King Admin 数据 mock 服务。",
   "keywords": [
     "king",
     "king admin",
     "serve",
     "mock serve"
   ],
+  "license": "MIT",
   "author": {
     "name": "king3",
     "email": "w2196592083@gmail.com",
     "url": "https://github.com/Coder-King3"
   },
-  "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "listhen -w app.ts",
+    "build": "pnpm unbuild --stub"
+  },
+  "main": "index.js",
   "devDependencies": {
     "@types/jsonwebtoken": "catalog:",
     "@types/node": "catalog:",
     "h3": "catalog:",
     "jsonwebtoken": "catalog:",
-    "listhen": "catalog:"
+    "listhen": "catalog:",
+    "unbuild": "^3.5.0"
   },
   "engines": {
     "node": ">=20.10.0",

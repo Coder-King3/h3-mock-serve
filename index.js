@@ -7,13 +7,13 @@ const { toNodeListener } = require('h3')
 
 async function main() {
   try {
-    const { app } = await import('./dist/app.mjs')
+    const { app } = await import('./.output/app.mjs')
 
     const server = createServer(toNodeListener(app))
     const port = process.env.PORT || 3065
 
     server.listen(port, () => {
-      console.log(`➜  H3 Mock Server:  http://localhost:${port}`)
+      console.log(`➜  H3 Mock Server:  http://localhost:${port}/api`)
     })
   } catch (error) {
     console.log(`App not found: ${error.message}`)

@@ -17,7 +17,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "listhen -w app.ts",
-    "build": "pnpm unbuild --stub"
+    "build": "pnpm unbuild"
   },
   "main": "index.js",
   "devDependencies": {

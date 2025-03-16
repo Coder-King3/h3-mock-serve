@@ -7,7 +7,7 @@ const { toNodeListener } = require('h3')
 
 async function main() {
   try {
-    const { app } = await import('./.output/app.mjs')
+    const { app } = await import('./dist/app.mjs')
 
     const server = createServer(toNodeListener(app))
     const port = process.env.PORT || 3065

@@ -1,18 +1,30 @@
+/* eslint-disable perfectionist/sort-named-imports */
 import type { RouteConfig } from '../types'
 
 import { readBody, setResponseStatus } from 'h3'
 
 import {
+  // Part: cookie-utils
   clearRefreshTokenCookie,
-  setRefreshTokenCookie
-} from '../utils/cookie-utils'
-import { generateAccessToken, generateRefreshToken } from '../utils/jwt-util'
-import { MOCK_USERS } from '../utils/mock-data'
-import {
+  getRefreshTokenFromCookie,
+  setRefreshTokenCookie,
+
+  // Part: jwt-util
+  generateAccessToken,
+  generateRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+
+  // Part: mock-data
+  MOCK_CODES,
+  MOCK_USERS,
+
+  // Part: response
   forbiddenResponse,
+  unAuthorizedResponse,
   useResponseError,
   useResponseSuccess
-} from '../utils/response'
+} from '../utils'
 
 const routes: RouteConfig[] = [
   {
@@ -40,9 +52,8 @@ const routes: RouteConfig[] = [
 
       setRefreshTokenCookie(event, refreshToken)
 
-      const { password: _pwd, ...userinfo } = findUser
       return useResponseSuccess({
-        ...userinfo,
+        ...findUser,
         accessToken
       })
     },
@@ -51,10 +62,62 @@ const routes: RouteConfig[] = [
   },
   {
     handler: (event) => {
-      // Implement logout logic here
+      const refreshToken = getRefreshTokenFromCookie(event)
+      if (!refreshToken) {
+        return useResponseSuccess('')
+      }
+
+      clearRefreshTokenCookie(event)
+
+      return useResponseSuccess('')
     },
     method: 'get',
     url: '/logout'
+  },
+  {
+    handler: (event) => {
+      const userinfo = verifyAccessToken(event)
+      if (!userinfo) {
+        return unAuthorizedResponse(event)
+      }
+
+      const codes =
+        MOCK_CODES.find((item) => item.username === userinfo.username)?.codes ??
+        []
+
+      return useResponseSuccess(codes)
+    },
+    method: 'get',
+    url: '/codes'
+  },
+  {
+    handler: (event) => {
+      const refreshToken = getRefreshTokenFromCookie(event)
+      if (!refreshToken) {
+        return forbiddenResponse(event)
+      }
+
+      clearRefreshTokenCookie(event)
+
+      const userinfo = verifyRefreshToken(refreshToken)
+      if (!userinfo) {
+        return forbiddenResponse(event)
+      }
+
+      const findUser = MOCK_USERS.find(
+        (item) => item.username === userinfo.username
+      )
+      if (!findUser) {
+        return forbiddenResponse(event)
+      }
+      const accessToken = generateAccessToken(findUser)
+
+      setRefreshTokenCookie(event, refreshToken)
+
+      return accessToken
+    },
+    method: 'post',
+    url: '/refresh'
   }
 ]
 

@@ -1,11 +1,8 @@
+import type { App, Router } from 'h3'
+
 import type { RouteConfig, RouterOptions, RoutesGroup } from '../types'
 
-import {
-  createRouter as createH3Router,
-  defineEventHandler,
-  type Router,
-  useBase
-} from 'h3'
+import { createRouter as createH3Router, defineEventHandler, useBase } from 'h3'
 
 import { isEmpty } from '../utils/inference'
 
@@ -84,6 +81,10 @@ function createRouter(config: RouterOptions) {
   return configureRouter(h3Router, routes, prefix)
 }
 
+const setupRouter = (app: App, router: Router) => {
+  app.use(router)
+}
+
 function configureRouter(
   router: Router,
   routes: RouteConfig[],
@@ -149,4 +150,10 @@ function getRoutePaths(routes: RouteConfig[]) {
   return routePaths
 }
 
-export { addRoutesPrefix, createRouter, createRoutes, getRoutePaths }
+export {
+  addRoutesPrefix,
+  createRouter,
+  createRoutes,
+  getRoutePaths,
+  setupRouter
+}

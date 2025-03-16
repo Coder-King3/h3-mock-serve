@@ -1,25 +1,19 @@
 import type { applicationConfig } from '../types'
 
-import {
-  appendCorsHeaders,
-  appendHeaders,
-  createApp as createH3App,
-  defineEventHandler,
-  type H3CorsOptions
-} from 'h3'
+import { createApp as createH3App } from 'h3'
 
-import { isObject } from '../utils/inference'
-import { createRouter } from './router'
-
-const DEFAULT_CORS_CONFIG: H3CorsOptions = {
-  allowHeaders: '*',
-  maxAge: '0',
-  methods: '*',
-  origin: '*'
-}
+import { setupMiddleware } from './middleware'
+import { createRouter, setupRouter } from './router'
 
 function defineApplication(config: applicationConfig) {
-  const { cors = false, h3Options = {}, headers = {}, prefix, routes } = config
+  const {
+    cors = false,
+    h3Options = {},
+    headers = {},
+    middlewares,
+    prefix,
+    routes
+  } = config
   const h3App = createH3App(h3Options)
 
   const router = createRouter({
@@ -28,25 +22,14 @@ function defineApplication(config: applicationConfig) {
   })
 
   // use router
-  h3App.use(router)
+  setupRouter(h3App, router)
 
-  // 如果开启 CORS，注册对应的中间件
-  if (cors) {
-    h3App.use(
-      defineEventHandler((event) => {
-        appendCorsHeaders(event, DEFAULT_CORS_CONFIG)
-      })
-    )
-  }
-
-  // 只有 headers 对象非空时才注册 header 中间件
-  if (isObject(headers) && Object.keys(headers).length > 0) {
-    h3App.use(
-      defineEventHandler((event) => {
-        appendHeaders(event, headers)
-      })
-    )
-  }
+  // use middleware
+  setupMiddleware(h3App, {
+    cors,
+    headers,
+    middlewares
+  })
 
   return h3App
 }

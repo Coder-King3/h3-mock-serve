@@ -21,11 +21,11 @@
   },
   "main": "index.js",
   "devDependencies": {
-    "@types/jsonwebtoken": "catalog:",
-    "@types/node": "catalog:",
-    "h3": "catalog:",
-    "jsonwebtoken": "catalog:",
-    "listhen": "catalog:",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.13.10",
+    "h3": "^1.15.1",
+    "jsonwebtoken": "^9.0.2",
+    "listhen": "^1.9.0",
     "unbuild": "^3.5.0"
   },
   "engines": {

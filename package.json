@@ -15,7 +15,7 @@
     "url": "https://github.com/Coder-King3"
   },
   "scripts": {
-    "start": "node index.js",
+    "start": "pwsh ./run.ps1",
     "dev": "listhen -w app.ts",
     "build": "pnpm unbuild"
   },

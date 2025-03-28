@@ -6,10 +6,15 @@ King Admin 数据 mock 服务，没有对接任何的数据库，所有数据都
 
 ## Running the app
 
+如果想要部署到线上请先运行打包命令
+
 ```bash
 # development
 $ pnpm run dev
 
 # production
 $ pnpm run start
+
+# build
+$ pnpm run build
 ```

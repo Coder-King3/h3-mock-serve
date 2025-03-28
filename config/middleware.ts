@@ -13,10 +13,10 @@ function setupMiddleware(app: App, options: MiddlewareOptions) {
   // CORS
   if (cors) {
     headers = {
-      'access-control-allow-headers': '*',
-      'access-control-allow-methods': '*',
-      'access-control-allow-origin': '*',
-      'access-control-max-age': '0',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': '*',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Max-Age': '0',
       ...headers
     }
   }

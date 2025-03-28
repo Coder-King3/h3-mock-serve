@@ -1571,10 +1571,10 @@ function setupMiddleware(app, options) {
   let { headers = {} } = options;
   if (cors) {
     headers = {
-      "access-control-allow-headers": "*",
-      "access-control-allow-methods": "*",
-      "access-control-allow-origin": "*",
-      "access-control-max-age": "0",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "*",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Max-Age": "0",
       ...headers
     };
   }
@@ -8493,7 +8493,6 @@ const app = defineApplication({
     onError: errorHandler
   },
   headers: {
-    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Headers": "Accept, Authorization, Content-Length, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With",
     "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
     "Access-Control-Allow-Origin": "*",

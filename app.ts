@@ -3,7 +3,6 @@ import errorHandler from './error'
 import { routes } from './routes'
 
 export const app = defineApplication({
-  cors: true,
   h3Options: {
     onError: errorHandler
   },

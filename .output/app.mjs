@@ -1042,23 +1042,15 @@ function defaultContentType(event, type) {
     event.node.res.setHeader("content-type", type);
   }
 }
-function appendResponseHeaders(event, headers) {
+function setResponseHeaders(event, headers) {
   for (const [name, value] of Object.entries(headers)) {
-    appendResponseHeader(event, name, value);
+    event.node.res.setHeader(
+      name,
+      value
+    );
   }
 }
-const appendHeaders = appendResponseHeaders;
-function appendResponseHeader(event, name, value) {
-  let current = event.node.res.getHeader(name);
-  if (!current) {
-    event.node.res.setHeader(name, value);
-    return;
-  }
-  if (!Array.isArray(current)) {
-    current = [current.toString()];
-  }
-  event.node.res.setHeader(name, [...current, value]);
-}
+const setHeaders = setResponseHeaders;
 function isStream(data) {
   if (!data || typeof data !== "object") {
     return false;
@@ -1145,54 +1137,6 @@ function sendWebResponse(event, response) {
     return;
   }
   return sendStream(event, response.body);
-}
-function isCorsOriginAllowed(origin, options) {
-  const { origin: originOption } = options;
-  if (!origin || !originOption || originOption === "*" || originOption === "null") {
-    return true;
-  }
-  if (Array.isArray(originOption)) {
-    return originOption.some((_origin) => {
-      if (_origin instanceof RegExp) {
-        return _origin.test(origin);
-      }
-      return origin === _origin;
-    });
-  }
-  return originOption(origin);
-}
-function createOriginHeaders(event, options) {
-  const { origin: originOption } = options;
-  const origin = getRequestHeader(event, "origin");
-  if (!origin || !originOption || originOption === "*") {
-    return { "access-control-allow-origin": "*" };
-  }
-  if (typeof originOption === "string") {
-    return { "access-control-allow-origin": originOption, vary: "origin" };
-  }
-  return isCorsOriginAllowed(origin, options) ? { "access-control-allow-origin": origin, vary: "origin" } : {};
-}
-function createCredentialsHeaders(options) {
-  const { credentials } = options;
-  if (credentials) {
-    return { "access-control-allow-credentials": "true" };
-  }
-  return {};
-}
-function createExposeHeaders(options) {
-  const { exposeHeaders } = options;
-  if (!exposeHeaders) {
-    return {};
-  }
-  if (exposeHeaders === "*") {
-    return { "access-control-expose-headers": exposeHeaders };
-  }
-  return { "access-control-expose-headers": exposeHeaders.join(",") };
-}
-function appendCorsHeaders(event, options) {
-  appendHeaders(event, createOriginHeaders(event, options));
-  appendHeaders(event, createCredentialsHeaders(options));
-  appendHeaders(event, createExposeHeaders(options));
 }
 
 function defineEventHandler(handler) {
@@ -1612,17 +1556,9 @@ function createRouter$1(opts = {}) {
   return router;
 }
 
-const corsMiddleware = () => {
-  return defineEventHandler((event) => {
-    appendCorsHeaders(event, {
-      origin: "*"
-    });
-  });
-};
-
 const headerMiddleware = (headers) => {
   return defineEventHandler((event) => {
-    appendHeaders(event, headers);
+    setHeaders(event, headers);
   });
 };
 
@@ -1631,9 +1567,16 @@ const isEmpty = (val) => isString(val) ? val.trim() === "" : false;
 const isObject = (val) => val !== null && typeof val === "object";
 
 function setupMiddleware(app, options) {
-  const { cors = false, headers = {}, middlewares = [] } = options;
+  const { cors = false, middlewares = [] } = options;
+  let { headers = {} } = options;
   if (cors) {
-    app.use(corsMiddleware());
+    headers = {
+      "access-control-allow-headers": "*",
+      "access-control-allow-methods": "*",
+      "access-control-allow-origin": "*",
+      "access-control-max-age": "0",
+      ...headers
+    };
   }
   if (isObject(headers) && Object.keys(headers).length > 0) {
     app.use(headerMiddleware(headers));

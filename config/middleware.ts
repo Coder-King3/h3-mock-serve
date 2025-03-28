@@ -7,7 +7,6 @@ import { isObject } from '../utils/inference'
 
 function setupMiddleware(app: App, options: MiddlewareOptions) {
   const { cors = false, middlewares = [] } = options
-  console.log(` cors:`, cors)
 
   let { headers = {} } = options
 
@@ -21,8 +20,6 @@ function setupMiddleware(app: App, options: MiddlewareOptions) {
       ...headers
     }
   }
-
-  console.log(` headers:`, headers)
 
   // 只有 headers 对象非空时才注册 header 中间件
   if (isObject(headers) && Object.keys(headers).length > 0) {

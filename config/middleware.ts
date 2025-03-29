@@ -1,9 +1,30 @@
-import type { App } from 'h3'
-
 import type { Middleware, MiddlewareOptions } from '../types'
 
-import { headerMiddleware } from '../middleware'
-import { isObject } from '../utils/inference'
+import { type App, defineEventHandler, setHeaders } from 'h3'
+
+// common middlewares
+function lowerCaseKeys<T extends Record<string, any>>(
+  headers: T
+): { [K in keyof T as Lowercase<K & string>]: T[K] } {
+  const newHeaders: Record<string, any> = {} // 临时 mutable 对象
+  Object.keys(headers).forEach((key) => {
+    newHeaders[key.toLowerCase()] = headers[key]
+  })
+  return newHeaders as { [K in keyof T as Lowercase<K & string>]: T[K] }
+}
+
+const headerMiddleware = (headers: Record<string, string>) => {
+  return defineEventHandler((event) => {
+    setHeaders(event, headers)
+  })
+}
+
+// register middlewares
+function registerMiddlewares(app: App, middlewares: Middleware[]) {
+  middlewares.forEach((middleware) => {
+    app.use(middleware())
+  })
+}
 
 function setupMiddleware(app: App, options: MiddlewareOptions) {
   const { cors = false, middlewares = [] } = options
@@ -13,27 +34,20 @@ function setupMiddleware(app: App, options: MiddlewareOptions) {
   // CORS
   if (cors) {
     headers = {
-      'Access-Control-Allow-Headers': '*',
-      'Access-Control-Allow-Methods': '*',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Max-Age': '0',
-      ...headers
+      'access-control-allow-headers': '*',
+      'access-control-allow-methods': '*',
+      'access-control-allow-origin': '*',
+      'access-control-max-age': '0',
+      ...lowerCaseKeys(headers)
     }
   }
 
-  // 只有 headers 对象非空时才注册 header 中间件
-  if (isObject(headers) && Object.keys(headers).length > 0) {
+  // Headers
+  if (headers) {
     app.use(headerMiddleware(headers))
   }
 
   registerMiddlewares(app, middlewares)
-}
-
-// 注册自定义中间件
-function registerMiddlewares(app: App, middlewares: Middleware[]) {
-  middlewares.forEach((middleware) => {
-    app.use(middleware())
-  })
 }
 
 export { setupMiddleware }

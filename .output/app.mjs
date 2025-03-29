@@ -1556,38 +1556,43 @@ function createRouter$1(opts = {}) {
   return router;
 }
 
+function lowerCaseKeys(headers) {
+  const newHeaders = {};
+  Object.keys(headers).forEach((key) => {
+    newHeaders[key.toLowerCase()] = headers[key];
+  });
+  return newHeaders;
+}
 const headerMiddleware = (headers) => {
   return defineEventHandler((event) => {
     setHeaders(event, headers);
   });
 };
-
-const isString = (val) => typeof val === "string";
-const isEmpty = (val) => isString(val) ? val.trim() === "" : false;
-const isObject = (val) => val !== null && typeof val === "object";
-
-function setupMiddleware(app, options) {
-  const { cors = false, middlewares = [] } = options;
-  let { headers = {} } = options;
-  if (cors) {
-    headers = {
-      "Access-Control-Allow-Headers": "*",
-      "Access-Control-Allow-Methods": "*",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Max-Age": "0",
-      ...headers
-    };
-  }
-  if (isObject(headers) && Object.keys(headers).length > 0) {
-    app.use(headerMiddleware(headers));
-  }
-  registerMiddlewares(app, middlewares);
-}
 function registerMiddlewares(app, middlewares) {
   middlewares.forEach((middleware) => {
     app.use(middleware());
   });
 }
+function setupMiddleware(app, options) {
+  const { cors = false, middlewares = [] } = options;
+  let { headers = {} } = options;
+  if (cors) {
+    headers = {
+      "access-control-allow-headers": "*",
+      "access-control-allow-methods": "*",
+      "access-control-allow-origin": "*",
+      "access-control-max-age": "0",
+      ...lowerCaseKeys(headers)
+    };
+  }
+  if (headers) {
+    app.use(headerMiddleware(headers));
+  }
+  registerMiddlewares(app, middlewares);
+}
+
+const isString = (val) => typeof val === "string";
+const isEmpty = (val) => isString(val) ? val.trim() === "" : false;
 
 function generateHomeApis(routes) {
   const routePaths = getRoutePaths(routes);
@@ -1710,12 +1715,12 @@ function defineApplication(config) {
     prefix,
     routes
   });
-  setupRouter(h3App, router);
   setupMiddleware(h3App, {
     cors,
     headers,
     middlewares
   });
+  setupRouter(h3App, router);
   return h3App;
 }
 
@@ -8363,6 +8368,28 @@ function unAuthorizedResponse(event) {
   setResponseStatus(event, 401);
   return useResponseError("Unauthorized Exception", "Unauthorized Exception");
 }
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const defaultMiddleware = () => {
+  return defineEventHandler(async (event) => {
+    event.node.res.setHeader(
+      "Access-Control-Allow-Origin",
+      event.headers.get("Origin") ?? "*"
+    );
+    if (event.method === "OPTIONS") {
+      event.node.res.statusCode = 204;
+      event.node.res.statusMessage = "No Content.";
+      return "OK";
+    } else if (["DELETE", "PATCH", "POST", "PUT"].includes(event.method) && event.path.startsWith("/api/system/")) {
+      await sleep(Math.floor(Math.random() * 1e3));
+      return forbiddenResponse(event, "\u6F14\u793A\u73AF\u5883\uFF0C\u7981\u6B62\u4FEE\u6539");
+    }
+  });
+};
+
+const middlewares = [defaultMiddleware];
 
 const routes$3 = [
   {
@@ -8493,13 +8520,13 @@ const app = defineApplication({
     onError: errorHandler
   },
   headers: {
-    // 'Access-Control-Allow-Credentials': 'true',
-    // 'Access-Control-Allow-Headers':
-    //   'Accept, Authorization, Content-Length, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With',
-    // 'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    // 'Access-Control-Allow-Origin': '*',
-    // 'Access-Control-Expose-Headers': '*'
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Accept, Authorization, Content-Length, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With",
+    "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Expose-Headers": "*"
   },
+  middlewares,
   prefix: "/api",
   routes
 });

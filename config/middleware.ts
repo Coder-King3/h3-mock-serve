@@ -22,7 +22,7 @@ const headerMiddleware = (headers: Record<string, string>) => {
 // register middlewares
 function registerMiddlewares(app: App, middlewares: Middleware[]) {
   middlewares.forEach((middleware) => {
-    app.use(middleware())
+    app.use(middleware)
   })
 }
 
@@ -50,4 +50,8 @@ function setupMiddleware(app: App, options: MiddlewareOptions) {
   registerMiddlewares(app, middlewares)
 }
 
-export { setupMiddleware }
+function createMiddleware(middleware: Middleware) {
+  return defineEventHandler(middleware)
+}
+
+export { createMiddleware, setupMiddleware }

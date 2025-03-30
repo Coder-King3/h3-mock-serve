@@ -1,6 +1,6 @@
 import type { EventHandler } from 'h3'
 
-type Middleware = () => EventHandler
+type Middleware = EventHandler
 
 interface MiddlewareOptions {
   cors?: boolean

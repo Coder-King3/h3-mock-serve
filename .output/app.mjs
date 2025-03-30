@@ -1570,7 +1570,7 @@ const headerMiddleware = (headers) => {
 };
 function registerMiddlewares(app, middlewares) {
   middlewares.forEach((middleware) => {
-    app.use(middleware());
+    app.use(middleware);
   });
 }
 function setupMiddleware(app, options) {
@@ -1590,10 +1590,50 @@ function setupMiddleware(app, options) {
   }
   registerMiddlewares(app, middlewares);
 }
+function createMiddleware(middleware) {
+  return defineEventHandler(middleware);
+}
 
 const isString = (val) => typeof val === "string";
 const isEmpty = (val) => isString(val) ? val.trim() === "" : false;
 
+function createRouter(config) {
+  const { prefix, routes } = config;
+  const h3Router = createRouter$1();
+  registerRoutes(h3Router, routes);
+  return configureRouter(h3Router, routes, prefix);
+}
+function registerRoutes(router, routes) {
+  routes.forEach(({ handler, method = "get", url }) => {
+    if (!router[method]) {
+      console.warn(`Unsupported HTTP method: ${method}`);
+      return;
+    }
+    router[method](url, defineEventHandler(handler));
+  });
+}
+const setupRouter = (app, router) => {
+  app.use(router);
+};
+function configureRouter(router, routes, prefix) {
+  const basePaths = prefix ? ["/", prefix] : ["/"];
+  const targetRouter = prefix ? wrapWithPrefix(router, prefix) : router;
+  configureHomeTemplate(targetRouter, routes, basePaths);
+  return targetRouter;
+}
+function wrapWithPrefix(router, prefix) {
+  const baseRouter = createRouter$1();
+  baseRouter.use(`${prefix}/**`, useBase(prefix, router.handler));
+  return baseRouter;
+}
+function configureHomeTemplate(router, routes, paths) {
+  paths.filter((path) => !isEmpty(path)).forEach((path) => {
+    router.get(
+      path,
+      defineEventHandler(() => generateHomeApis(routes))
+    );
+  });
+}
 function generateHomeApis(routes) {
   const routePaths = getRoutePaths(routes);
   function getStyle() {
@@ -1642,47 +1682,36 @@ function generateHomeApis(routes) {
     </div>
   `;
 }
-const registerRoutes = (router, routes) => {
-  routes.forEach(({ handler, method = "get", url }) => {
-    if (!router[method]) {
-      console.warn(`Unsupported HTTP method: ${method}`);
-      return;
-    }
-    router[method](url, defineEventHandler(handler));
-  });
-};
-function createRouter(config) {
-  const { prefix, routes } = config;
-  const h3Router = createRouter$1();
-  registerRoutes(h3Router, routes);
-  return configureRouter(h3Router, routes, prefix);
-}
-const setupRouter = (app, router) => {
-  app.use(router);
-};
-function configureRouter(router, routes, prefix) {
-  const basePaths = prefix ? ["/", prefix] : ["/"];
-  const targetRouter = prefix ? wrapWithPrefix(router, prefix) : router;
-  configureHomeTemplate(targetRouter, routes, basePaths);
-  return targetRouter;
-}
-function wrapWithPrefix(router, prefix) {
-  const baseRouter = createRouter$1();
-  baseRouter.use(`${prefix}/**`, useBase(prefix, router.handler));
-  return baseRouter;
-}
-function configureHomeTemplate(router, routes, paths) {
-  paths.filter((path) => !isEmpty(path)).forEach((path) => {
-    router.get(
-      path,
-      defineEventHandler(() => generateHomeApis(routes))
-    );
-  });
-}
-function createRoutes(options) {
+function createRoutesGroup(options) {
   return options.flatMap(
     ({ prefix, routes }) => addRoutesPrefix(routes, prefix)
   );
+}
+function createRoutes(options = []) {
+  const methods = ["get", "patch", "post", "put", "delete"];
+  const routes = {
+    add(url, method, handler) {
+      this.values.push({ handler, method, url });
+    },
+    values: options,
+    // Part: 初始空函数占位
+    delete: () => {
+    },
+    get: () => {
+    },
+    patch: () => {
+    },
+    post: () => {
+    },
+    put: () => {
+    }
+  };
+  methods.forEach((method) => {
+    routes[method] = function(url, handler) {
+      this.add(url, method, handler);
+    };
+  });
+  return routes;
 }
 function addRoutesPrefix(routes, prefix) {
   if (isEmpty(prefix)) return routes;
@@ -8372,145 +8401,119 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const defaultMiddleware = () => {
-  return defineEventHandler(async (event) => {
-    event.node.res.setHeader(
-      "Access-Control-Allow-Origin",
-      event.headers.get("Origin") ?? "*"
-    );
-    if (event.method === "OPTIONS") {
-      event.node.res.statusCode = 204;
-      event.node.res.statusMessage = "No Content.";
-      return "OK";
-    } else if (["DELETE", "PATCH", "POST", "PUT"].includes(event.method) && event.path.startsWith("/api/system/")) {
-      await sleep(Math.floor(Math.random() * 1e3));
-      return forbiddenResponse(event, "\u6F14\u793A\u73AF\u5883\uFF0C\u7981\u6B62\u4FEE\u6539");
-    }
-  });
-};
+const defaultMiddleware = createMiddleware(async (event) => {
+  event.node.res.setHeader(
+    "Access-Control-Allow-Origin",
+    event.headers.get("Origin") ?? "*"
+  );
+  if (event.method === "OPTIONS") {
+    event.node.res.statusCode = 204;
+    event.node.res.statusMessage = "No Content.";
+    return "OK";
+  } else if (["DELETE", "PATCH", "POST", "PUT"].includes(event.method) && event.path.startsWith("/api/system/")) {
+    await sleep(Math.floor(Math.random() * 1e3));
+    return forbiddenResponse(event, "\u6F14\u793A\u73AF\u5883\uFF0C\u7981\u6B62\u4FEE\u6539");
+  }
+});
 
 const middlewares = [defaultMiddleware];
 
-const routes$3 = [
-  {
-    handler: async (event) => {
-      const { password, username } = await readBody(event);
-      if (!password || !username) {
-        setResponseStatus(event, 400);
-        return useResponseError(
-          "BadRequestException",
-          "Username and password are required"
-        );
-      }
-      const findUser = MOCK_USERS.find(
-        (item) => item.username === username && item.password === password
-      );
-      if (!findUser) {
-        clearRefreshTokenCookie(event);
-        return forbiddenResponse(event, "Username or password is incorrect.");
-      }
-      const accessToken = generateAccessToken(findUser);
-      const refreshToken = generateRefreshToken(findUser);
-      setRefreshTokenCookie(event, refreshToken);
-      return useResponseSuccess({
-        ...findUser,
-        accessToken
-      });
-    },
-    method: "post",
-    url: "/login"
-  },
-  {
-    handler: (event) => {
-      const refreshToken = getRefreshTokenFromCookie(event);
-      if (!refreshToken) {
-        return useResponseSuccess("");
-      }
-      clearRefreshTokenCookie(event);
-      return useResponseSuccess("");
-    },
-    method: "get",
-    url: "/logout"
-  },
-  {
-    handler: (event) => {
-      const userinfo = verifyAccessToken(event);
-      if (!userinfo) {
-        return unAuthorizedResponse(event);
-      }
-      const codes = MOCK_CODES.find((item) => item.username === userinfo.username)?.codes ?? [];
-      return useResponseSuccess(codes);
-    },
-    method: "get",
-    url: "/codes"
-  },
-  {
-    handler: (event) => {
-      const refreshToken = getRefreshTokenFromCookie(event);
-      if (!refreshToken) {
-        return forbiddenResponse(event);
-      }
-      clearRefreshTokenCookie(event);
-      const userinfo = verifyRefreshToken(refreshToken);
-      if (!userinfo) {
-        return forbiddenResponse(event);
-      }
-      const findUser = MOCK_USERS.find(
-        (item) => item.username === userinfo.username
-      );
-      if (!findUser) {
-        return forbiddenResponse(event);
-      }
-      const accessToken = generateAccessToken(findUser);
-      setRefreshTokenCookie(event, refreshToken);
-      return accessToken;
-    },
-    method: "post",
-    url: "/refresh"
+const routes$3 = createRoutes();
+routes$3.post("/login", async (event) => {
+  const { password, username } = await readBody(event);
+  if (!password || !username) {
+    setResponseStatus(event, 400);
+    return useResponseError(
+      "BadRequestException",
+      "Username and password are required"
+    );
   }
-];
-
-const routes$2 = [
-  {
-    handler: (event) => {
-      const userinfo = verifyAccessToken(event);
-      if (!userinfo) {
-        return unAuthorizedResponse(event);
-      }
-      const menus = MOCK_MENUS.find((item) => item.username === userinfo.username)?.menus ?? [];
-      return useResponseSuccess(menus);
-    },
-    method: "get",
-    url: "/all"
+  const findUser = MOCK_USERS.find(
+    (item) => item.username === username && item.password === password
+  );
+  if (!findUser) {
+    clearRefreshTokenCookie(event);
+    return forbiddenResponse(event, "Username or password is incorrect.");
   }
-];
-
-const routes$1 = [
-  {
-    handler: (event) => {
-      const userinfo = verifyAccessToken(event);
-      if (!userinfo) {
-        return unAuthorizedResponse(event);
-      }
-      return useResponseSuccess(userinfo);
-    },
-    method: "get",
-    url: "/info"
+  const accessToken = generateAccessToken(findUser);
+  const refreshToken = generateRefreshToken(findUser);
+  setRefreshTokenCookie(event, refreshToken);
+  return useResponseSuccess({
+    ...findUser,
+    accessToken
+  });
+});
+routes$3.get("/logout", (event) => {
+  const refreshToken = getRefreshTokenFromCookie(event);
+  if (!refreshToken) {
+    return useResponseSuccess("");
   }
-];
+  clearRefreshTokenCookie(event);
+  return useResponseSuccess("");
+});
+routes$3.get("/codes", (event) => {
+  const userinfo = verifyAccessToken(event);
+  if (!userinfo) {
+    return unAuthorizedResponse(event);
+  }
+  const codes = MOCK_CODES.find((item) => item.username === userinfo.username)?.codes ?? [];
+  return useResponseSuccess(codes);
+});
+routes$3.post("/refresh", (event) => {
+  const refreshToken = getRefreshTokenFromCookie(event);
+  if (!refreshToken) {
+    return forbiddenResponse(event);
+  }
+  clearRefreshTokenCookie(event);
+  const userinfo = verifyRefreshToken(refreshToken);
+  if (!userinfo) {
+    return forbiddenResponse(event);
+  }
+  const findUser = MOCK_USERS.find(
+    (item) => item.username === userinfo.username
+  );
+  if (!findUser) {
+    return forbiddenResponse(event);
+  }
+  const accessToken = generateAccessToken(findUser);
+  setRefreshTokenCookie(event, refreshToken);
+  return accessToken;
+});
+const auth = routes$3.values;
 
-const routes = createRoutes([
+const routes$2 = createRoutes();
+routes$2.get("/all", (event) => {
+  const userinfo = verifyAccessToken(event);
+  if (!userinfo) {
+    return unAuthorizedResponse(event);
+  }
+  const menus = MOCK_MENUS.find((item) => item.username === userinfo.username)?.menus ?? [];
+  return useResponseSuccess(menus);
+});
+const menu = routes$2.values;
+
+const routes$1 = createRoutes();
+routes$1.get("/info", (event) => {
+  const userinfo = verifyAccessToken(event);
+  if (!userinfo) {
+    return unAuthorizedResponse(event);
+  }
+  return useResponseSuccess(userinfo);
+});
+const user = routes$1.values;
+
+const routes = createRoutesGroup([
   {
     prefix: "/auth",
-    routes: routes$3
+    routes: auth
   },
   {
     prefix: "/user",
-    routes: routes$1
+    routes: user
   },
   {
     prefix: "/menu",
-    routes: routes$2
+    routes: menu
   }
 ]);
 
